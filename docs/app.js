@@ -4,8 +4,6 @@ import * as api from './lib/api.js';
 import * as storage from './lib/storage.js';
 import * as ui from './lib/ui.js';
 
-void api; // Step 4 で使う
-
 const URL_KEY_PARAM = 'gmaps_key';
 
 /**
@@ -95,7 +93,55 @@ function onKeyClear() {
   }
 }
 
+// 実行中の検索。新しい検索やキャンセルで前の通信を止め、古い結果で画面が上書きされないようにする
+let currentSearch = null;
+// Step 5（候補一覧と比較枠）で使うため、直近の検索結果を持っておく
+let candidates = [];
+
+async function onSearchSubmit(event) {
+  event.preventDefault();
+  const query = ui.getSearchQuery();
+  if (!query) {
+    ui.setMessage('店舗名を入力してください。', 'warn');
+    return;
+  }
+  if (!apiKey) {
+    applyKeyState({ key: '', source: 'none' });
+    return;
+  }
+  currentSearch?.abort();
+  const controller = new AbortController();
+  currentSearch = controller;
+  ui.setBusy(true);
+  ui.setMessage(`「${query}」を検索しています…`, 'info');
+  try {
+    candidates = await api.searchPlaces(query, { key: apiKey, signal: controller.signal });
+    if (!candidates.length) {
+      ui.setMessage('該当するガソリンスタンドが見つかりませんでした。店名や地名を変えて試してください。', 'warn');
+      return;
+    }
+    const place = await api.getPlaceDetails(candidates[0].id, { key: apiKey, signal: controller.signal });
+    ui.renderPlace(place, {
+      map: api.mapEmbedUrl(apiKey, place.id),
+      streetView: place.location ? api.streetViewEmbedUrl(apiKey, place.location) : '',
+    });
+    const summary = candidates.length > 1 ? `${candidates.length}件見つかりました。1件目を表示しています。` : '1件見つかりました。';
+    ui.setMessage(summary, 'success');
+  } catch (err) {
+    ui.setMessage(err.message || '予期しないエラーが起きました。', err.kind === 'aborted' ? 'info' : 'error');
+  } finally {
+    // 後から始まった検索が動いている間は、そちらのボタン状態を壊さない
+    if (currentSearch === controller) {
+      currentSearch = null;
+      ui.setBusy(false);
+      ui.setSearchEnabled(Boolean(apiKey));
+    }
+  }
+}
+
 function init() {
+  document.getElementById('search-form').addEventListener('submit', onSearchSubmit);
+  document.getElementById('cancel-btn').addEventListener('click', () => currentSearch?.abort());
   document.getElementById('key-form').addEventListener('submit', onKeySubmit);
   document.getElementById('key-clear').addEventListener('click', onKeyClear);
   document.getElementById('key-toggle').addEventListener('click', () => {
@@ -105,8 +151,3 @@ function init() {
 }
 
 init();
-
-// Step 4 で検索処理から参照する
-export function getApiKey() {
-  return apiKey;
-}

@@ -151,7 +151,8 @@ a { color: var(--color-accent); }
   margin: 0;
 }
 .info-list dt { color: var(--color-muted); font-size: 0.9rem; }
-.info-list dd { margin: 0; overflow-wrap: anywhere; }
+/* 営業時間は曜日ごとに改行して返ってくるため、改行をそのまま表示する */
+.info-list dd { margin: 0; overflow-wrap: anywhere; white-space: pre-line; }
 
 /* ---- 地図・ストリートビュー ---- */
 .embed {
