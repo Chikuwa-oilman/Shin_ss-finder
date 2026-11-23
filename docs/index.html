@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SS Finder</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- config.js は .gitignore 対象で、無い環境もある。無くても画面が壊れないよう通常の script で先に読み、失敗は無視される -->
+  <script src="config.js"></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <h1 class="site-title">SS Finder</h1>
+    <button type="button" id="key-toggle" class="btn btn-ghost" aria-controls="key-panel" aria-expanded="false">APIキー設定</button>
+  </header>
+
+  <main class="container">
+    <!-- APIキー未設定時は app.js が hidden を外して開く -->
+    <section id="key-panel" class="panel" aria-labelledby="key-heading" hidden>
+      <h2 id="key-heading" class="panel-title">APIキー設定</h2>
+      <p class="hint">Google Maps の API キーを入力してください。キーはこのブラウザの中だけに保存されます。</p>
+      <form id="key-form" class="row">
+        <label for="key-input" class="visually-hidden">APIキー</label>
+        <input id="key-input" class="input" type="password" autocomplete="off" spellcheck="false" placeholder="AIza...">
+        <button type="submit" class="btn btn-primary">保存</button>
+        <button type="button" id="key-clear" class="btn btn-ghost">消去</button>
+      </form>
+      <p id="key-status" class="hint">未設定</p>
+    </section>
+
+    <section class="panel" aria-label="検索">
+      <form id="search-form">
+        <label for="search-input" class="label">店舗名で検索</label>
+        <div class="row">
+          <input id="search-input" class="input" type="search" placeholder="例: ENEOS 丸の内" autocomplete="off">
+          <button type="submit" id="search-btn" class="btn btn-primary">検索</button>
+          <button type="button" id="cancel-btn" class="btn btn-ghost" hidden>キャンセル</button>
+        </div>
+        <p class="hint">店舗名の一部だけでも探せます。</p>
+      </form>
+      <!-- 状態は data-state（info / success / warn / error）で切り替える -->
+      <p id="message" class="message" data-state="info" role="status" aria-live="polite">APIキーを設定すると検索できます。</p>
+
+      <details class="drawer" id="history">
+        <summary id="history-summary">最近の検索</summary>
+        <ul class="chip-list" id="history-list"><li class="empty">まだ履歴はありません</li></ul>
+        <button type="button" id="history-clear" class="btn btn-small btn-ghost">履歴を消す</button>
+      </details>
+
+      <details class="drawer" id="favorites">
+        <summary id="favorites-summary">お気に入り一覧</summary>
+        <ul class="chip-list" id="favorites-list"><li class="empty">まだお気に入りはありません</li></ul>
+        <div class="row">
+          <button type="button" id="fav-export" class="btn btn-small btn-ghost">エクスポート</button>
+          <button type="button" id="fav-import" class="btn btn-small btn-ghost">インポート</button>
+        </div>
+        <!-- エクスポート・インポートの文字をやり取りする欄。ダイアログは使わず、ここでコピー＆貼り付けする -->
+        <div id="fav-io-box" class="io-box" hidden>
+          <label for="fav-io" class="label" id="fav-io-label">お気に入りのデータ</label>
+          <textarea id="fav-io" class="input io-text" rows="5" spellcheck="false"></textarea>
+          <div class="row">
+            <button type="button" id="fav-import-apply" class="btn btn-small btn-primary" hidden>読み込む</button>
+            <button type="button" id="fav-io-close" class="btn btn-small btn-ghost">閉じる</button>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <!-- 検索結果。aria-live で更新を読み上げる -->
+    <section id="results" class="grid" aria-live="polite" aria-label="検索結果">
+      <article class="card" id="info-card">
+        <header class="card-header">
+          <h2 class="card-title" id="info-name">店舗名</h2>
+          <button type="button" class="icon-btn" id="fav-toggle" aria-pressed="false" aria-label="お気に入りに追加" disabled>☆</button>
+        </header>
+        <dl class="info-list" id="info-list">
+          <dt>住所</dt><dd>—</dd>
+          <dt>電話</dt><dd>—</dd>
+          <dt>営業時間</dt><dd>—</dd>
+          <dt>営業状況</dt><dd>—</dd>
+          <dt>定休日</dt><dd>—</dd>
+          <dt>ブランド</dt><dd>—</dd>
+          <dt>運営会社</dt><dd>—</dd>
+          <dt>評価</dt><dd>—</dd>
+          <dt>公式サイト</dt><dd>—</dd>
+          <dt>Google 地図</dt><dd>—</dd>
+        </dl>
+      </article>
+
+      <article class="card">
+        <h2 class="card-title">地図</h2>
+        <div class="embed" id="map-embed"><p class="embed-empty">検索すると地図が表示されます</p></div>
+      </article>
+
+      <article class="card">
+        <h2 class="card-title">ストリートビュー</h2>
+        <div class="embed" id="sv-embed"><p class="embed-empty">検索するとストリートビューが表示されます</p></div>
+      </article>
+    </section>
+
+    <!-- 候補が2件以上のときだけ lists.js が表示する -->
+    <section class="panel" id="candidates-panel" aria-labelledby="candidates-heading" hidden>
+      <h2 id="candidates-heading" class="panel-title">検索結果の候補</h2>
+      <div class="grid" id="candidates"></div>
+      <p class="muted" id="candidates-more" hidden></p>
+    </section>
+
+    <section class="panel" aria-labelledby="compare-heading">
+      <h2 id="compare-heading" class="panel-title">比較 <span class="muted" id="compare-count">0/3</span></h2>
+      <div class="compare" id="compare">
+        <p class="muted">候補の「比較に追加」で、最大3件まで横に並べて見比べられます。</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
