@@ -43,22 +43,30 @@ const BRAND_PATTERNS = [
   [/モービル|mobil/i, 'モービル'],
 ];
 
+// 店名は「Ｅｓｓｏ天王町ＳＳ」のように全角英字のこともあるため、半角にそろえてから調べる
+const normalize = (text) => (text || '').normalize('NFKC');
+
 export function guessBrand(name) {
-  const hit = BRAND_PATTERNS.find(([pattern]) => pattern.test(name));
+  const hit = BRAND_PATTERNS.find(([pattern]) => pattern.test(normalize(name)));
   return hit ? `${hit[1]}（店名から推定）` : '';
 }
 
-// 「ガソリンスタンドを探している」と Google に伝わる言葉
-const GAS_STATION_WORDS = /ガソリン|スタンド|給油|石油|[SＳ][SＳ]|station/i;
+// ガソリンスタンドを表す言葉（店名の末尾の「SS」など）
+const GAS_STATION_WORDS = /ガソリン|スタンド|給油|石油|SS|station/i;
+
+/** 名前がガソリンスタンドらしいか（スタンドを表す言葉かブランド名を含むか）。 */
+export function isStationName(text) {
+  const t = normalize(text);
+  return GAS_STATION_WORDS.test(t) || BRAND_PATTERNS.some(([pattern]) => pattern.test(t));
+}
 
 /**
- * Google に送る検索語を作る。
+ * 場所で探すときに Google に送る検索語を作る。
  * 「天王町」のような地名だけだと、Google は地名そのものを探してしまい、
  * ガソリンスタンドに絞る条件と合わずに0件になる。店名やブランドが入っていないときは
  * 「ガソリンスタンド」を足して、その場所のスタンドを探すよう伝える。
  */
 export function buildSearchText(query) {
   const text = query.trim();
-  const mentionsStation = GAS_STATION_WORDS.test(text) || BRAND_PATTERNS.some(([pattern]) => pattern.test(text));
-  return mentionsStation ? text : `${text} ガソリンスタンド`;
+  return isStationName(text) ? text : `${text} ガソリンスタンド`;
 }
