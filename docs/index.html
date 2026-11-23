@@ -10,7 +10,109 @@
   <script type="module" src="app.js"></script>
 </head>
 <body>
-  <!-- Step 2 で画面の見た目を作る -->
-  <h1>SS Finder</h1>
+  <header class="site-header">
+    <h1 class="site-title">SS Finder</h1>
+    <button type="button" id="key-toggle" class="btn btn-ghost" aria-controls="key-panel" aria-expanded="false">APIキー設定</button>
+  </header>
+
+  <main class="container">
+    <!-- APIキー未設定時は app.js が hidden を外して開く -->
+    <section id="key-panel" class="panel" aria-labelledby="key-heading" hidden>
+      <h2 id="key-heading" class="panel-title">APIキー設定</h2>
+      <p class="hint">Google Maps の API キーを入力してください。キーはこのブラウザの中だけに保存されます。</p>
+      <form id="key-form" class="row">
+        <label for="key-input" class="visually-hidden">APIキー</label>
+        <input id="key-input" class="input" type="password" autocomplete="off" spellcheck="false" placeholder="AIza...">
+        <button type="submit" class="btn btn-primary">保存</button>
+        <button type="button" id="key-clear" class="btn btn-ghost">消去</button>
+      </form>
+    </section>
+
+    <section class="panel" aria-label="検索">
+      <form id="search-form">
+        <label for="search-input" class="label">店舗名で検索</label>
+        <div class="row">
+          <input id="search-input" class="input" type="search" placeholder="例: ENEOS 丸の内" autocomplete="off">
+          <button type="submit" id="search-btn" class="btn btn-primary">検索</button>
+          <button type="button" id="cancel-btn" class="btn btn-ghost" hidden>キャンセル</button>
+        </div>
+        <p class="hint">店舗名の一部だけでも探せます。</p>
+      </form>
+      <!-- 状態は data-state（info / success / warn / error）で切り替える -->
+      <p id="message" class="message" data-state="info" role="status" aria-live="polite">APIキーを設定すると検索できます。</p>
+
+      <details class="drawer" id="history">
+        <summary>最近の検索</summary>
+        <ul class="chip-list" id="history-list"><li class="empty">まだ履歴はありません</li></ul>
+        <button type="button" id="history-clear" class="btn btn-small btn-ghost">履歴を消す</button>
+      </details>
+
+      <details class="drawer" id="favorites">
+        <summary>お気に入り一覧</summary>
+        <ul class="chip-list" id="favorites-list"><li class="empty">まだお気に入りはありません</li></ul>
+        <div class="row">
+          <button type="button" id="fav-export" class="btn btn-small btn-ghost">エクスポート</button>
+          <button type="button" id="fav-import" class="btn btn-small btn-ghost">インポート</button>
+        </div>
+      </details>
+    </section>
+
+    <!-- 検索結果。aria-live で更新を読み上げる -->
+    <section id="results" class="grid" aria-live="polite" aria-label="検索結果">
+      <article class="card" id="info-card">
+        <header class="card-header">
+          <h2 class="card-title" id="info-name">店舗名</h2>
+          <button type="button" class="icon-btn" id="fav-toggle" aria-pressed="false" aria-label="お気に入りに追加">☆</button>
+        </header>
+        <dl class="info-list">
+          <dt>住所</dt><dd>—</dd>
+          <dt>電話</dt><dd>—</dd>
+          <dt>営業時間</dt><dd>—</dd>
+          <dt>営業状況</dt><dd>—</dd>
+          <dt>定休日</dt><dd>—</dd>
+          <dt>ブランド</dt><dd>—</dd>
+          <dt>運営会社</dt><dd>—</dd>
+          <dt>評価</dt><dd>—</dd>
+          <dt>公式サイト</dt><dd>—</dd>
+          <dt>Google 地図</dt><dd>—</dd>
+        </dl>
+      </article>
+
+      <article class="card">
+        <h2 class="card-title">地図</h2>
+        <div class="embed" id="map-embed"><p class="embed-empty">検索すると地図が表示されます</p></div>
+      </article>
+
+      <article class="card">
+        <h2 class="card-title">ストリートビュー</h2>
+        <div class="embed" id="sv-embed"><p class="embed-empty">検索するとストリートビューが表示されます</p></div>
+      </article>
+    </section>
+
+    <section class="panel" aria-labelledby="candidates-heading">
+      <h2 id="candidates-heading" class="panel-title">ほかの候補</h2>
+      <div class="grid" id="candidates">
+        <article class="card card-compact">
+          <h3 class="card-title">候補の店舗名</h3>
+          <p class="muted">住所</p>
+          <button type="button" class="btn btn-small btn-ghost">比較に追加</button>
+        </article>
+      </div>
+      <p class="muted" id="candidates-more">そのほか：—</p>
+    </section>
+
+    <section class="panel" aria-labelledby="compare-heading">
+      <h2 id="compare-heading" class="panel-title">比較（最大3件）</h2>
+      <div class="compare" id="compare">
+        <article class="card card-compact">
+          <header class="card-header">
+            <h3 class="card-title">比較中の店舗名</h3>
+            <button type="button" class="icon-btn" aria-label="比較から外す">×</button>
+          </header>
+          <p class="muted">住所 / 評価 / 営業状況</p>
+        </article>
+      </div>
+    </section>
+  </main>
 </body>
 </html>
