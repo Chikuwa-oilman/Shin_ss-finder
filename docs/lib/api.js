@@ -42,6 +42,9 @@ async function request(url, { key, signal, fields, method = 'GET', body }) {
     res = await fetch(url, {
       method,
       signal,
+      // ブラウザ標準では別サイトへの通信にドメインまでしか送らず（例: https://xxx.github.io/）、
+      // キーのウェブサイト制限（…/Shin_ss-finder/*）と一致せず 403 になる。ページの URL まで送って照合させる
+      referrerPolicy: 'no-referrer-when-downgrade',
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': key,
