@@ -151,6 +151,18 @@ a { color: var(--color-accent); }
 .drawer summary { cursor: pointer; color: var(--color-muted); font-weight: 600; }
 .chip-list { list-style: none; padding: 0; margin: 8px 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .chip-list .empty { color: var(--color-muted); font-size: 0.9rem; }
+.chip {
+  padding: 4px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.chip:hover { border-color: var(--color-accent); }
+.chip-time { color: var(--color-muted); margin-left: 6px; font-size: 0.75rem; }
 
 /* ---- 基本情報 ---- */
 .info-list {

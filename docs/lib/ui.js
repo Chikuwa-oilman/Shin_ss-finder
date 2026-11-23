@@ -49,6 +49,11 @@ export function getSearchQuery() {
   return $('search-input').value.trim();
 }
 
+/** 履歴から再検索するとき、何で検索したかが入力欄でも分かるようにする。 */
+export function setSearchQuery(text) {
+  $('search-input').value = text;
+}
+
 /** 検索中は二重送信を防ぎ、代わりにキャンセルを出す。 */
 export function setBusy(busy) {
   $('search-btn').disabled = busy;

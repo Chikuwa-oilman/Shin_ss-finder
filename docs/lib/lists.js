@@ -57,6 +57,39 @@ function candidateCard(candidate, isCurrent) {
   return card;
 }
 
+/** 「最近の検索」を描画する。押すと同じ言葉で再検索できるボタンとして並べる。 */
+export function renderHistory(list) {
+  $('history-summary').textContent = list.length ? `最近の検索（${list.length}件）` : '最近の検索';
+  $('history-clear').hidden = list.length === 0;
+  if (!list.length) {
+    const empty = document.createElement('li');
+    empty.className = 'empty';
+    empty.textContent = 'まだ履歴はありません';
+    $('history-list').replaceChildren(empty);
+    return;
+  }
+  $('history-list').replaceChildren(...list.map((entry) => {
+    const li = document.createElement('li');
+    const chip = button(entry.query, 'history', entry.placeId || '', 'chip');
+    chip.dataset.query = entry.query;
+    const when = formatDate(entry.at);
+    if (when) {
+      const time = document.createElement('span');
+      time.className = 'chip-time';
+      time.textContent = when;
+      chip.append(time);
+    }
+    li.append(chip);
+    return li;
+  }));
+}
+
+function formatDate(iso) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
 /** 比較枠を描画する。空のときは使い方の案内を出す。 */
 export function renderCompare(list) {
   $('compare-count').textContent = `${list.length}/${COMPARE_MAX}`;
