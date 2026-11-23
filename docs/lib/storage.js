@@ -69,10 +69,12 @@ export function loadHistory() {
  * 検索履歴の先頭に追加する。同じ言葉の古い履歴は消して先頭に移し、20件を超えた分は捨てる。
  * @returns 更新後の履歴（画面の描き直しに使う）
  */
-export function addHistory(query, placeId) {
+export function addHistory(query, placeId, prefecture = '') {
   const text = query.trim();
-  const rest = loadHistory().filter((e) => e.query.trim().toLowerCase() !== text.toLowerCase());
-  const next = [{ query: text, at: new Date().toISOString(), placeId }, ...rest].slice(0, HISTORY_MAX);
+  // 同じ言葉でも都道府県が違えば結果が変わるため、別の履歴として扱う
+  const same = (e) => e.query.trim().toLowerCase() === text.toLowerCase() && (e.prefecture || '') === prefecture;
+  const rest = loadHistory().filter((e) => !same(e));
+  const next = [{ query: text, prefecture, at: new Date().toISOString(), placeId }, ...rest].slice(0, HISTORY_MAX);
   safeSet(HISTORY_STORAGE_NAME, JSON.stringify(next));
   return next;
 }

@@ -1,7 +1,7 @@
 // Google Maps（Places API (New) と Maps Embed API）への通信をここに集める。
 // 画面側が API の細かい仕様（フィールドマスクなど）を知らずに済むようにするため。
 
-import { buildSearchText, describeHolidays, describeStatus, guessBrand, isStationName } from './place-info.js';
+import { buildNameVariant, buildSearchText, describeHolidays, describeStatus, guessBrand, isStationName } from './place-info.js';
 
 const PLACES_BASE = 'https://places.googleapis.com/v1';
 const EMBED_BASE = 'https://www.google.com/maps/embed/v1';
@@ -88,19 +88,27 @@ async function toApiError(res) {
 }
 
 /** 店舗名や地名で検索し、候補の一覧を返す（ガソリンスタンドに限定）。 */
-export async function searchPlaces(query, { key, signal }) {
+export async function searchPlaces(query, { key, signal, prefecture = '' }) {
   // Google にはガソリンスタンドなのに「建物」などの種類で登録された店がある（例: Ｅｓｓｏ天王町ＳＳ）。
-  // 種類で絞る検索だけではそうした店が出ないため、2通りを同時に行って合わせる。
-  //   店名で探す：種類で絞らず入力のまま探し、スタンドらしい名前か種類のものだけ残す
+  // 種類で絞る検索だけではそうした店が出ないため、最大3通りを同時に行って合わせる。
+  //   店名で探す：種類で絞らず入力のまま探す
+  //   別の言い方で探す：「SS」を省いた入力やカタカナのブランド名でも店名として当たるようにする
   //   場所で探す：ガソリンスタンドに絞り、地名だけの入力には「ガソリンスタンド」を足す
-  const [byName, byArea] = await Promise.all([
-    textSearch(query, { key, signal, gasOnly: false }),
-    textSearch(buildSearchText(query), { key, signal, gasOnly: true }),
+  // 都道府県が選ばれていれば先頭に付ける。付けないと、Google は別の地域の同名の場所を優先しやすい
+  const prefix = prefecture ? `${prefecture} ` : '';
+  const variant = buildNameVariant(query);
+  const nameQueries = variant ? [query, variant] : [query];
+  const [byArea, ...byName] = await Promise.all([
+    textSearch(prefix + buildSearchText(query), { key, signal, gasOnly: true }),
+    ...nameQueries.map((q) => textSearch(prefix + q, { key, signal, gasOnly: false })),
   ]);
-  const named = byName.filter((p) => p.types.includes('gas_station') || isStationName(p.name));
+  // 種類で絞らない検索には地名や商業施設も混ざるため、スタンドらしい名前か種類のものだけ残す
+  const named = byName.flat().filter((p) => p.types.includes('gas_station') || isStationName(p.name));
   // 店名で当たったものを先に出す（入力した名前の店を探している可能性が高いため）。重複は除く
   const seen = new Set();
-  return [...named, ...byArea].filter((p) => !seen.has(p.id) && seen.add(p.id));
+  return [...named, ...byArea]
+    .filter((p) => !prefecture || p.address.includes(prefecture))
+    .filter((p) => !seen.has(p.id) && seen.add(p.id));
 }
 
 async function textSearch(textQuery, { key, signal, gasOnly }) {

@@ -70,8 +70,10 @@ export function renderHistory(list) {
   }
   $('history-list').replaceChildren(...list.map((entry) => {
     const li = document.createElement('li');
-    const chip = button(entry.query, 'history', entry.placeId || '', 'chip');
+    const prefecture = typeof entry.prefecture === 'string' ? entry.prefecture : '';
+    const chip = button(prefecture ? `${prefecture}・${entry.query}` : entry.query, 'history', entry.placeId || '', 'chip');
     chip.dataset.query = entry.query;
+    chip.dataset.prefecture = prefecture;
     const when = formatDate(entry.at);
     if (when) {
       const time = document.createElement('span');
