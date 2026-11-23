@@ -1,7 +1,7 @@
 // Google Maps（Places API (New) と Maps Embed API）への通信をここに集める。
 // 画面側が API の細かい仕様（フィールドマスクなど）を知らずに済むようにするため。
 
-import { buildSearchText, describeHolidays, describeStatus, guessBrand } from './place-info.js';
+import { buildSearchText, describeHolidays, describeStatus, guessBrand, isStationName } from './place-info.js';
 
 const PLACES_BASE = 'https://places.googleapis.com/v1';
 const EMBED_BASE = 'https://www.google.com/maps/embed/v1';
@@ -13,6 +13,7 @@ const SEARCH_FIELDS = [
   'places.displayName',
   'places.formattedAddress',
   'places.location',
+  'places.types',
 ].join(',');
 
 const DETAIL_FIELDS = [
@@ -88,25 +89,32 @@ async function toApiError(res) {
 
 /** 店舗名や地名で検索し、候補の一覧を返す（ガソリンスタンドに限定）。 */
 export async function searchPlaces(query, { key, signal }) {
-  const data = await request(`${PLACES_BASE}/places:searchText`, {
-    key,
-    signal,
-    method: 'POST',
-    fields: SEARCH_FIELDS,
-    body: {
-      textQuery: buildSearchText(query),
-      languageCode: 'ja',
-      regionCode: 'JP',
-      includedType: 'gas_station',
-      strictTypeFiltering: true,
-      pageSize: 10,
-    },
-  });
+  // Google にはガソリンスタンドなのに「建物」などの種類で登録された店がある（例: Ｅｓｓｏ天王町ＳＳ）。
+  // 種類で絞る検索だけではそうした店が出ないため、2通りを同時に行って合わせる。
+  //   店名で探す：種類で絞らず入力のまま探し、スタンドらしい名前か種類のものだけ残す
+  //   場所で探す：ガソリンスタンドに絞り、地名だけの入力には「ガソリンスタンド」を足す
+  const [byName, byArea] = await Promise.all([
+    textSearch(query, { key, signal, gasOnly: false }),
+    textSearch(buildSearchText(query), { key, signal, gasOnly: true }),
+  ]);
+  const named = byName.filter((p) => p.types.includes('gas_station') || isStationName(p.name));
+  // 店名で当たったものを先に出す（入力した名前の店を探している可能性が高いため）。重複は除く
+  const seen = new Set();
+  return [...named, ...byArea].filter((p) => !seen.has(p.id) && seen.add(p.id));
+}
+
+async function textSearch(textQuery, { key, signal, gasOnly }) {
+  const body = { textQuery, languageCode: 'ja', regionCode: 'JP', pageSize: 10 };
+  if (gasOnly) {
+    Object.assign(body, { includedType: 'gas_station', strictTypeFiltering: true });
+  }
+  const data = await request(`${PLACES_BASE}/places:searchText`, { key, signal, method: 'POST', fields: SEARCH_FIELDS, body });
   return (data.places || []).map((p) => ({
     id: p.id,
     name: p.displayName?.text || '（名称不明）',
     address: p.formattedAddress || '',
     location: p.location || null,
+    types: p.types || [],
   }));
 }
 
