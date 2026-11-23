@@ -73,6 +73,8 @@ a { color: var(--color-accent); }
   display: grid;
   gap: var(--gap);
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  /* 隣のカードの高さに引き伸ばされて下に空白ができないよう、上揃えにする */
+  align-items: start;
 }
 /* 比較枠は最大3件なので3列で頭打ちにする */
 .compare {
@@ -123,6 +125,13 @@ a { color: var(--color-accent); }
   font-size: 1.3rem; line-height: 1; padding: 4px; cursor: pointer; border-radius: 6px;
 }
 .icon-btn:hover, .icon-btn[aria-pressed="true"] { color: var(--color-warn); }
+/* 文中に並べる候補名など、リンクのように見せたいボタン */
+.link-btn {
+  background: none; border: none; padding: 0; margin: 0 8px 0 0;
+  color: var(--color-accent); font: inherit; text-decoration: underline; cursor: pointer;
+}
+.card-actions { margin-top: 8px; }
+.info-list-compact { font-size: 0.9rem; }
 
 /* ---- 結果メッセージ（4状態） ---- */
 .message {

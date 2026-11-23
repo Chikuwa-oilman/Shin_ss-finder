@@ -80,7 +80,8 @@ export function renderPlace(place, embeds) {
   setEmbed('sv-embed', embeds.streetView, `${place.name} のストリートビュー`, 'ストリートビューを表示できませんでした');
 }
 
-function infoRow(label, value) {
+/** 項目名と値の dt/dd を作る。値は文字列か {href, text, external}。比較枠でも同じ見せ方にするため export する。 */
+export function infoRow(label, value) {
   const dt = document.createElement('dt');
   dt.textContent = label;
   const dd = document.createElement('dd');

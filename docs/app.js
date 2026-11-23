@@ -3,52 +3,19 @@
 import * as api from './lib/api.js';
 import * as storage from './lib/storage.js';
 import * as ui from './lib/ui.js';
-
-const URL_KEY_PARAM = 'gmaps_key';
-
-/**
- * 仕様の優先順位（URL > LocalStorage > config.js）でキーを決める。
- * どこから来たかも返すのは、消去ボタンを押してもキーが残るケース（config.js）を説明するため。
- */
-function resolveApiKey() {
-  const fromUrl = takeKeyFromUrl();
-  if (fromUrl) {
-    storage.saveApiKey(fromUrl);
-    return { key: fromUrl, source: 'url' };
-  }
-  const stored = storage.loadApiKey();
-  if (stored) {
-    return { key: stored, source: 'storage' };
-  }
-  const fromConfig = (window.CONFIG?.GOOGLE_MAPS_API_KEY || '').trim();
-  if (fromConfig) {
-    return { key: fromConfig, source: 'config' };
-  }
-  return { key: '', source: 'none' };
-}
-
-/**
- * URL の ?gmaps_key= を読み取り、URL からは消す。
- * 残すとブラウザ履歴やブックマーク、画面共有にキーが写り込むため。
- */
-function takeKeyFromUrl() {
-  const url = new URL(window.location.href);
-  const key = (url.searchParams.get(URL_KEY_PARAM) || '').trim();
-  if (key) {
-    url.searchParams.delete(URL_KEY_PARAM);
-    window.history.replaceState(null, '', url);
-  }
-  return key;
-}
-
-const SOURCE_LABELS = {
-  url: '設定済み（URL から読み込み、このブラウザに保存しました）',
-  storage: '設定済み（このブラウザに保存されています）',
-  config: '設定済み（config.js から読み込み）',
-  none: '未設定',
-};
+import * as lists from './lib/lists.js';
+import { resolveApiKey, SOURCE_LABELS } from './lib/key.js';
 
 let apiKey = '';
+// 直近の検索結果（候補一覧）と、いま基本情報カードに出している店舗
+let candidates = [];
+let currentPlaceId = '';
+// 比較枠に入れた店舗の詳細
+let compareList = [];
+// 詳細取得は1回ごとに料金と1日の回数を使うため、一度取った店舗は覚えておいて使い回す
+const detailCache = new Map();
+// 実行中の通信。新しい操作やキャンセルで前の通信を止め、古い結果で画面が上書きされないようにする
+let currentTask = null;
 
 /** キーの有無に合わせて画面全体の状態をそろえる。保存・消去のたびに呼ぶ。 */
 function applyKeyState({ key, source }) {
@@ -93,60 +60,125 @@ function onKeyClear() {
   }
 }
 
-// 実行中の検索。新しい検索やキャンセルで前の通信を止め、古い結果で画面が上書きされないようにする
-let currentSearch = null;
-// Step 5（候補一覧と比較枠）で使うため、直近の検索結果を持っておく
-let candidates = [];
-
-async function onSearchSubmit(event) {
-  event.preventDefault();
-  const query = ui.getSearchQuery();
-  if (!query) {
-    ui.setMessage('店舗名を入力してください。', 'warn');
-    return;
-  }
+/**
+ * 通信を伴う操作の共通処理（ボタンの状態・キャンセル・エラー表示）。
+ * 検索・候補の切り替え・比較への追加で同じ扱いにするため1か所にまとめた。
+ */
+async function runTask(startMessage, task) {
   if (!apiKey) {
     applyKeyState({ key: '', source: 'none' });
     return;
   }
-  currentSearch?.abort();
+  currentTask?.abort();
   const controller = new AbortController();
-  currentSearch = controller;
+  currentTask = controller;
   ui.setBusy(true);
-  ui.setMessage(`「${query}」を検索しています…`, 'info');
+  ui.setMessage(startMessage, 'info');
   try {
-    candidates = await api.searchPlaces(query, { key: apiKey, signal: controller.signal });
-    if (!candidates.length) {
-      ui.setMessage('該当するガソリンスタンドが見つかりませんでした。店名や地名を変えて試してください。', 'warn');
-      return;
-    }
-    const place = await api.getPlaceDetails(candidates[0].id, { key: apiKey, signal: controller.signal });
-    ui.renderPlace(place, {
-      map: api.mapEmbedUrl(apiKey, place.id),
-      streetView: place.location ? api.streetViewEmbedUrl(apiKey, place.location) : '',
-    });
-    const summary = candidates.length > 1 ? `${candidates.length}件見つかりました。1件目を表示しています。` : '1件見つかりました。';
-    ui.setMessage(summary, 'success');
+    await task(controller.signal);
   } catch (err) {
     ui.setMessage(err.message || '予期しないエラーが起きました。', err.kind === 'aborted' ? 'info' : 'error');
   } finally {
-    // 後から始まった検索が動いている間は、そちらのボタン状態を壊さない
-    if (currentSearch === controller) {
-      currentSearch = null;
+    // 後から始まった操作が動いている間は、そちらのボタン状態を壊さない
+    if (currentTask === controller) {
+      currentTask = null;
       ui.setBusy(false);
       ui.setSearchEnabled(Boolean(apiKey));
     }
   }
 }
 
+async function loadDetails(placeId, signal) {
+  if (!detailCache.has(placeId)) {
+    detailCache.set(placeId, await api.getPlaceDetails(placeId, { key: apiKey, signal }));
+  }
+  return detailCache.get(placeId);
+}
+
+function showPlace(place) {
+  currentPlaceId = place.id;
+  ui.renderPlace(place, {
+    map: api.mapEmbedUrl(apiKey, place.id),
+    streetView: place.location ? api.streetViewEmbedUrl(apiKey, place.location) : '',
+  });
+  lists.renderCandidates(candidates, currentPlaceId);
+}
+
+function onSearchSubmit(event) {
+  event.preventDefault();
+  const query = ui.getSearchQuery();
+  if (!query) {
+    ui.setMessage('店舗名を入力してください。', 'warn');
+    return;
+  }
+  runTask(`「${query}」を検索しています…`, async (signal) => {
+    candidates = await api.searchPlaces(query, { key: apiKey, signal });
+    if (!candidates.length) {
+      lists.renderCandidates([], '');
+      ui.setMessage('該当するガソリンスタンドが見つかりませんでした。店名や地名を変えて試してください。', 'warn');
+      return;
+    }
+    showPlace(await loadDetails(candidates[0].id, signal));
+    const summary = candidates.length > 1
+      ? `${candidates.length}件見つかりました。1件目を表示しています。下の候補から切り替えられます。`
+      : '1件見つかりました。';
+    ui.setMessage(summary, 'success');
+  });
+}
+
+function onSelectCandidate(placeId) {
+  runTask('店舗の詳細を読み込んでいます…', async (signal) => {
+    const place = await loadDetails(placeId, signal);
+    showPlace(place);
+    ui.setMessage(`「${place.name}」を表示しています。`, 'success');
+  });
+}
+
+function onCompareAdd(placeId) {
+  if (compareList.some((p) => p.id === placeId)) {
+    ui.setMessage('この店舗はすでに比較に入っています。', 'info');
+    return;
+  }
+  if (compareList.length >= lists.COMPARE_MAX) {
+    ui.setMessage(`比較は${lists.COMPARE_MAX}件までです。× で外してから追加してください。`, 'warn');
+    return;
+  }
+  runTask('比較用に詳細を読み込んでいます…', async (signal) => {
+    const place = await loadDetails(placeId, signal);
+    // 読み込み中に同じ店舗が追加された場合の二重登録を防ぐ
+    if (!compareList.some((p) => p.id === place.id)) {
+      compareList = [...compareList, place];
+    }
+    lists.renderCompare(compareList);
+    ui.setMessage(`「${place.name}」を比較に追加しました（${compareList.length}/${lists.COMPARE_MAX}）。`, 'success');
+  });
+}
+
+function onCompareRemove(placeId) {
+  compareList = compareList.filter((p) => p.id !== placeId);
+  lists.renderCompare(compareList);
+  ui.setMessage(`比較から外しました（${compareList.length}/${lists.COMPARE_MAX}）。`, 'info');
+}
+
+// 候補や比較のボタンは描画のたびに作り直されるため、親でまとめてクリックを受け取る
+const ACTIONS = { select: onSelectCandidate, 'compare-add': onCompareAdd, 'compare-remove': onCompareRemove };
+
+function onActionClick(event) {
+  const btn = event.target.closest('button[data-action]');
+  if (btn && !btn.disabled && ACTIONS[btn.dataset.action]) {
+    ACTIONS[btn.dataset.action](btn.dataset.id);
+  }
+}
+
 function init() {
   document.getElementById('search-form').addEventListener('submit', onSearchSubmit);
-  document.getElementById('cancel-btn').addEventListener('click', () => currentSearch?.abort());
+  document.getElementById('cancel-btn').addEventListener('click', () => currentTask?.abort());
   document.getElementById('key-form').addEventListener('submit', onKeySubmit);
   document.getElementById('key-clear').addEventListener('click', onKeyClear);
   document.getElementById('key-toggle').addEventListener('click', () => {
     ui.setKeyPanelOpen(!ui.isKeyPanelOpen());
   });
+  document.querySelector('main').addEventListener('click', onActionClick);
   applyKeyState(resolveApiKey());
 }
 

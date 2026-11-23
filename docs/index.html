@@ -90,28 +90,17 @@
       </article>
     </section>
 
-    <section class="panel" aria-labelledby="candidates-heading">
-      <h2 id="candidates-heading" class="panel-title">ほかの候補</h2>
-      <div class="grid" id="candidates">
-        <article class="card card-compact">
-          <h3 class="card-title">候補の店舗名</h3>
-          <p class="muted">住所</p>
-          <button type="button" class="btn btn-small btn-ghost">比較に追加</button>
-        </article>
-      </div>
-      <p class="muted" id="candidates-more">そのほか：—</p>
+    <!-- 候補が2件以上のときだけ lists.js が表示する -->
+    <section class="panel" id="candidates-panel" aria-labelledby="candidates-heading" hidden>
+      <h2 id="candidates-heading" class="panel-title">検索結果の候補</h2>
+      <div class="grid" id="candidates"></div>
+      <p class="muted" id="candidates-more" hidden></p>
     </section>
 
     <section class="panel" aria-labelledby="compare-heading">
-      <h2 id="compare-heading" class="panel-title">比較（最大3件）</h2>
+      <h2 id="compare-heading" class="panel-title">比較 <span class="muted" id="compare-count">0/3</span></h2>
       <div class="compare" id="compare">
-        <article class="card card-compact">
-          <header class="card-header">
-            <h3 class="card-title">比較中の店舗名</h3>
-            <button type="button" class="icon-btn" aria-label="比較から外す">×</button>
-          </header>
-          <p class="muted">住所 / 評価 / 営業状況</p>
-        </article>
+        <p class="muted">候補の「比較に追加」で、最大3件まで横に並べて見比べられます。</p>
       </div>
     </section>
   </main>
