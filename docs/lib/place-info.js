@@ -52,12 +52,39 @@ export function guessBrand(name) {
 }
 
 // ガソリンスタンドを表す言葉（店名の末尾の「SS」など）
-const GAS_STATION_WORDS = /ガソリン|スタンド|給油|石油|SS|station/i;
+const GAS_STATION_WORDS = /ガソリン|スタンド|給油|石油|\bSS\b|station/i;
 
 /** 名前がガソリンスタンドらしいか（スタンドを表す言葉かブランド名を含むか）。 */
 export function isStationName(text) {
   const t = normalize(text);
   return GAS_STATION_WORDS.test(t) || BRAND_PATTERNS.some(([pattern]) => pattern.test(t));
+}
+
+// Google の店名は英字で登録されていることが多い（例: Ｅｓｓｏ天王町ＳＳ）。
+// カタカナのブランド名では店名として当たらないため、登録されている綴りに置き換える
+const BRAND_SPELLINGS = [
+  [/エッソ/g, 'Esso'],
+  [/エネオス/g, 'ENEOS'],
+  [/モービル/g, 'Mobil'],
+  [/シェル/g, 'Shell'],
+  [/アポロステーション|アポロ/g, 'apollostation'],
+];
+
+/**
+ * 店名で探すときの、もう1つの言い方を作る（無ければ空文字）。
+ * ブランド名を登録されている綴りに直し、「SS」が無ければ足す。
+ * 例: 「天王町」→「天王町 SS」、「エッソ 天王町」→「Esso 天王町 SS」
+ */
+export function buildNameVariant(query) {
+  let text = query.trim();
+  for (const [pattern, spelling] of BRAND_SPELLINGS) {
+    text = text.replace(pattern, spelling);
+  }
+  // 「Esso」の中の ss を店名末尾の SS と取り違えないよう、単語としての SS だけを見る
+  if (!/\bSS\b/i.test(normalize(text))) {
+    text = `${text} SS`;
+  }
+  return text === query.trim() ? '' : text;
 }
 
 /**

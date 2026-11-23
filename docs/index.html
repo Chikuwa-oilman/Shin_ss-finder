@@ -31,13 +31,16 @@
 
     <section class="panel" aria-label="検索">
       <form id="search-form">
-        <label for="search-input" class="label">店舗名で検索</label>
+        <label for="search-input" class="label">店舗名・地名で検索</label>
         <div class="row">
-          <input id="search-input" class="input" type="search" placeholder="例: ENEOS 丸の内" autocomplete="off">
+          <!-- 選択肢は ui.js が都道府県の一覧から作る -->
+          <label for="pref-select" class="visually-hidden">都道府県（任意）</label>
+          <select id="pref-select" class="input select"><option value="">都道府県：指定なし</option></select>
+          <input id="search-input" class="input" type="search" placeholder="例: 天王町、エッソ 天王町" autocomplete="off">
           <button type="submit" id="search-btn" class="btn btn-primary">検索</button>
           <button type="button" id="cancel-btn" class="btn btn-ghost" hidden>キャンセル</button>
         </div>
-        <p class="hint">店舗名の一部や地名でも探せます。同じ地名や店名が各地にあるときは、市区名も入れると絞り込めます（例: 横浜 天王町、京都 天王町SS）。</p>
+        <p class="hint">店舗名（「SS」は省略可）や地名で探せます。同じ名前の店や地名が各地にあるときは、都道府県を選ぶと見つかりやすくなります。</p>
       </form>
       <!-- 状態は data-state（info / success / warn / error）で切り替える -->
       <p id="message" class="message" data-state="info" role="status" aria-live="polite">APIキーを設定すると検索できます。</p>

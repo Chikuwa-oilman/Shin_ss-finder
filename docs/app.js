@@ -63,16 +63,18 @@ function showPlace(place) {
   favorites.setCurrentPlace(place);
 }
 
-function runSearch(query) {
-  runTask(`「${query}」を検索しています…`, async (signal) => {
-    candidates = await api.searchPlaces(query, { key: apiKey, signal });
+function runSearch(query, prefecture) {
+  const label = prefecture ? `${prefecture}・${query}` : query;
+  runTask(`「${label}」を検索しています…`, async (signal) => {
+    candidates = await api.searchPlaces(query, { key: apiKey, signal, prefecture });
     if (!candidates.length) {
       lists.renderCandidates([], '');
-      ui.setMessage('該当するガソリンスタンドが見つかりませんでした。店名や地名を変えて試してください。', 'warn');
+      const hint = prefecture ? '都道府県を変えるか、店名や地名を変えて試してください。' : '都道府県を選ぶか、店名や地名を変えて試してください。';
+      ui.setMessage(`該当するガソリンスタンドが見つかりませんでした。${hint}`, 'warn');
       return;
     }
     // 見つかった検索だけを履歴に残す（見つからなかった言葉を再検索しても意味がないため）
-    lists.renderHistory(storage.addHistory(query, candidates[0].id));
+    lists.renderHistory(storage.addHistory(query, candidates[0].id, prefecture));
     showPlace(await loadDetails(candidates[0].id, signal));
     const summary = candidates.length > 1
       ? `${candidates.length}件見つかりました。1件目を表示しています。下の候補から切り替えられます。`
@@ -88,12 +90,12 @@ function onSearchSubmit(event) {
     ui.setMessage('店舗名を入力してください。', 'warn');
     return;
   }
-  runSearch(query);
+  runSearch(query, ui.getPrefecture());
 }
 
-function onHistorySelect({ query }) {
-  ui.setSearchQuery(query);
-  runSearch(query);
+function onHistorySelect({ query, prefecture = '' }) {
+  ui.setSearchQuery(query, prefecture);
+  runSearch(query, prefecture);
 }
 
 function onHistoryClear() {
@@ -165,6 +167,7 @@ function init() {
   document.getElementById('cancel-btn').addEventListener('click', () => currentTask?.abort());
   document.getElementById('history-clear').addEventListener('click', onHistoryClear);
   document.querySelector('main').addEventListener('click', onActionClick);
+  ui.initPrefectureSelect();
   lists.renderHistory(storage.loadHistory());
   favorites.initFavorites();
   initKeyControls((key) => {
