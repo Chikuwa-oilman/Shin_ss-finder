@@ -80,3 +80,21 @@ export function addHistory(query, placeId) {
 export function clearHistory() {
   return safeSet(HISTORY_STORAGE_NAME, null);
 }
+
+const FAVORITES_STORAGE_NAME = 'SS_FINDER_FAVORITES';
+
+/** お気に入りとして正しい形か。インポートした JSON の確認にも使う。 */
+export function isFavorite(e) {
+  return Boolean(e) && typeof e.id === 'string' && e.id !== '' && typeof e.name === 'string';
+}
+
+/** お気に入り（追加した順）。形の合わない項目は捨てる。 */
+export function loadFavorites() {
+  const list = readJson(FAVORITES_STORAGE_NAME, []);
+  return Array.isArray(list) ? list.filter(isFavorite) : [];
+}
+
+/** お気に入りを丸ごと保存する。保存できなかったら false。 */
+export function saveFavorites(list) {
+  return safeSet(FAVORITES_STORAGE_NAME, JSON.stringify(list));
+}

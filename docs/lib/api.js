@@ -58,7 +58,10 @@ async function request(url, { key, signal, fields, method = 'GET', body }) {
   if (!res.ok) {
     throw await toApiError(res);
   }
-  return res.json();
+  // 応答が途中で切れるなどして読めなかったとき、英語の内部エラーをそのまま画面に出さないため
+  return res.json().catch(() => {
+    throw new ApiError('unknown', '応答を読み取れませんでした。時間をおいて試してください。');
+  });
 }
 
 async function toApiError(res) {

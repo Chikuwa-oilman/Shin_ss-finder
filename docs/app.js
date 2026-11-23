@@ -5,6 +5,7 @@ import * as storage from './lib/storage.js';
 import * as ui from './lib/ui.js';
 import * as lists from './lib/lists.js';
 import { initKeyControls, showMissingKey } from './lib/key.js';
+import * as favorites from './lib/favorites.js';
 
 let apiKey = '';
 // 直近の検索結果（候補一覧）と、いま基本情報カードに出している店舗
@@ -59,6 +60,7 @@ function showPlace(place) {
     streetView: place.location ? api.streetViewEmbedUrl(apiKey, place.location) : '',
   });
   lists.renderCandidates(candidates, currentPlaceId);
+  favorites.setCurrentPlace(place);
 }
 
 function runSearch(query) {
@@ -108,6 +110,12 @@ function onSelectCandidate({ id }) {
   });
 }
 
+// お気に入りは Place ID が分かっているので、検索せず詳細取得の1回だけで表示する（API の節約）
+function onSelectFavorite({ id }) {
+  candidates = [];
+  onSelectCandidate({ id });
+}
+
 function onCompareAdd({ id }) {
   if (compareList.some((p) => p.id === id)) {
     ui.setMessage('この店舗はすでに比較に入っています。', 'info');
@@ -141,6 +149,8 @@ const ACTIONS = {
   'compare-add': onCompareAdd,
   'compare-remove': onCompareRemove,
   history: onHistorySelect,
+  favorite: onSelectFavorite,
+  'favorite-remove': favorites.removeFavorite,
 };
 
 function onActionClick(event) {
@@ -156,6 +166,7 @@ function init() {
   document.getElementById('history-clear').addEventListener('click', onHistoryClear);
   document.querySelector('main').addEventListener('click', onActionClick);
   lists.renderHistory(storage.loadHistory());
+  favorites.initFavorites();
   initKeyControls((key) => {
     apiKey = key;
   });

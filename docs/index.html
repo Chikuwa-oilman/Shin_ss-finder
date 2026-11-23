@@ -49,11 +49,20 @@
       </details>
 
       <details class="drawer" id="favorites">
-        <summary>お気に入り一覧</summary>
+        <summary id="favorites-summary">お気に入り一覧</summary>
         <ul class="chip-list" id="favorites-list"><li class="empty">まだお気に入りはありません</li></ul>
         <div class="row">
           <button type="button" id="fav-export" class="btn btn-small btn-ghost">エクスポート</button>
           <button type="button" id="fav-import" class="btn btn-small btn-ghost">インポート</button>
+        </div>
+        <!-- エクスポート・インポートの文字をやり取りする欄。ダイアログは使わず、ここでコピー＆貼り付けする -->
+        <div id="fav-io-box" class="io-box" hidden>
+          <label for="fav-io" class="label" id="fav-io-label">お気に入りのデータ</label>
+          <textarea id="fav-io" class="input io-text" rows="5" spellcheck="false"></textarea>
+          <div class="row">
+            <button type="button" id="fav-import-apply" class="btn btn-small btn-primary" hidden>読み込む</button>
+            <button type="button" id="fav-io-close" class="btn btn-small btn-ghost">閉じる</button>
+          </div>
         </div>
       </details>
     </section>
@@ -63,7 +72,7 @@
       <article class="card" id="info-card">
         <header class="card-header">
           <h2 class="card-title" id="info-name">店舗名</h2>
-          <button type="button" class="icon-btn" id="fav-toggle" aria-pressed="false" aria-label="お気に入りに追加">☆</button>
+          <button type="button" class="icon-btn" id="fav-toggle" aria-pressed="false" aria-label="お気に入りに追加" disabled>☆</button>
         </header>
         <dl class="info-list" id="info-list">
           <dt>住所</dt><dd>—</dd>

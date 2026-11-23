@@ -163,6 +163,11 @@ a { color: var(--color-accent); }
 }
 .chip:hover { border-color: var(--color-accent); }
 .chip-time { color: var(--color-muted); margin-left: 6px; font-size: 0.75rem; }
+.chip-item { display: inline-flex; align-items: center; }
+.chip-item .icon-btn { font-size: 1rem; }
+.icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.io-box { margin-top: 12px; display: grid; gap: 8px; }
+.io-text { width: 100%; font-family: ui-monospace, Consolas, monospace; font-size: 0.8rem; resize: vertical; }
 
 /* ---- 基本情報 ---- */
 .info-list {
