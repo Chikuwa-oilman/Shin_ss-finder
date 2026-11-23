@@ -141,3 +141,12 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# ---- SS Finder ----
+# APIキーの実値を書くファイル。公開リポジトリに載せるとキーが漏れるため必ず除外する
+docs/config.js
+# Claude Code の個人設定（この PC 専用のパスなどを含み、共有するものではない）
+.claude/
+# OS が勝手に作るファイル
+.DS_Store
+Thumbs.db
